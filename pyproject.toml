@@ -1,0 +1,40 @@
+[project]
+name = "bookflow"
+version = "0.1.0"
+description = "CLI tool to organize ePub and PDF books, extract and enrich metadata via Open Library"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Alexandre Enouf", email = "alexandre.enouf@gmail.com" }
+]
+license = { text = "MIT" }
+keywords = ["epub", "ebooks", "books", "metadata", "openlibrary", "organizer", "cli"]
+dependencies = [
+    "ebooklib>=0.18",
+    "pypdf>=3.0.0",
+    "python-slugify>=8.0.0",
+    "requests>=2.31.0",
+    "rich>=13.0.0",
+    "tqdm>=4.65.0",
+    "typer>=0.12.0",
+]
+
+[project.scripts]
+bookflow = "bookflow.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.14.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bookflow"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

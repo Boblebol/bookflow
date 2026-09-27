@@ -1,0 +1,33 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv
+env/
+venv/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local cache & data
+.cache/
+*.sqlite
+*.sqlite3
+*.db
+
+# macOS & Editors
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp
