@@ -1,0 +1,27 @@
+name: 🛡️ Branch Guard & Security Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify-author-and-approvals:
+    name: 🔒 Verify Actor & Approvals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Authorized Actor
+        env:
+          ACTOR: ${{ github.actor }}
+          ALLOWED_OWNER: "Boblebol"
+        run: |
+          echo "Checking permissions for actor: ${ACTOR}..."
+          if [ "${ACTOR}" != "${ALLOWED_OWNER}" ] && [ "${{ github.event_name }}" = "push" ]; then
+            echo "❌ Error: Only @${ALLOWED_OWNER} is authorized to push directly to main!"
+            exit 1
+          fi
+          echo "✅ Authorization verified."
