@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default `component_sep` changed from `"_"` to `" - "`.
 - Default `word_sep` changed from `"-"` to `" "`.
 
+### Fixed
+- **Author Extraction Recursion & Particle/Initial Handling**: Fixed a critical `RecursionError` caused by infinite recursive splitting on inverted author names with initials and no space after comma (e.g. `Van Vogt,A. E.`). Added `allow_multi=False` recursion guard and prevented false multi-author detection for surnames with particles (`Van Vogt`, `De Balzac`) or given names with initials.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added

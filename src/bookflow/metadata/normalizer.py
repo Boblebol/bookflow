@@ -81,7 +81,7 @@ class MetadataNormalizer:
             else:
                 lower = token.lower()
                 if len(token) == 1 and token.isalpha():
-                    formatted_words.append(token.upper() if i == 0 else (lower if lower in STOP_WORDS else token.upper()))
+                    formatted_words.append(token.upper())
                 elif i > 0 and lower in STOP_WORDS:
                     formatted_words.append(lower)
                 else:
@@ -94,12 +94,24 @@ class MetadataNormalizer:
         return result
 
     @classmethod
+    def _looks_like_initials(cls, text: str) -> bool:
+        """Check if text contains or consists primarily of initials (e.g. 'A.', 'A. E.', 'A.E.', 'A E', 'J. K.')."""
+        cleaned = re.sub(r"[\.\s]+", " ", text.strip())
+        tokens = [t for t in cleaned.split() if t]
+        if not tokens:
+            return False
+        return all(len(t) == 1 and t.isalpha() for t in tokens) or any(
+            len(t.rstrip(".")) == 1 and t.rstrip(".").isalpha() for t in text.split()
+        )
+
+    @classmethod
     def extract_author_name(
         cls,
         author_raw: str,
         format_mode: str = "full",
         preserve_accents: bool = True,
         word_sep: str = " ",
+        allow_multi: bool = True,
     ) -> str:
         """Extract and format author name according to chosen format mode.
 
@@ -113,25 +125,48 @@ class MetadataNormalizer:
 
         raw = author_raw.strip()
 
-        # Handle conjunction-based multiple authors (e.g. "Douglas Preston & Lincoln Child")
-        multi_sep = None
-        for sep in [" & ", " et ", " and ", "; "]:
-            if sep in raw:
-                multi_sep = sep
-                break
+        # Handle multiple authors (only at top level with allow_multi to avoid infinite recursion)
+        multi_parts = None
+        if allow_multi:
+            for sep in [" & ", " et ", " and ", "; ", ";"]:
+                if sep in raw:
+                    parts = [p.strip() for p in raw.split(sep) if p.strip()]
+                    if len(parts) > 1:
+                        multi_parts = parts
+                        break
 
-        # Check if single comma is between two full names (e.g. "Douglas Preston, Lincoln Child")
-        if not multi_sep and raw.count(",") == 1:
-            p0, p1 = [p.strip() for p in raw.split(",")]
-            if len(p0.split()) > 1 and len(p1.split()) > 1:
-                multi_sep = ", "
+            # Check if single comma is between two full names (e.g. "Douglas Preston, Lincoln Child")
+            if not multi_parts and raw.count(",") == 1:
+                p0, p1 = [p.strip() for p in raw.split(",")]
+                p0_tokens = p0.split()
+                p1_tokens = p1.split()
+                if len(p0_tokens) > 1 and len(p1_tokens) > 1:
+                    is_p0_particle = p0_tokens[0].lower().rstrip("'") in PARTICLES
+                    is_p1_particle = (
+                        p1_tokens[0].lower().rstrip("'") in PARTICLES
+                        or p1_tokens[-1].lower().rstrip("'") in PARTICLES
+                    )
+                    is_p0_initials = cls._looks_like_initials(p0)
+                    is_p1_initials = cls._looks_like_initials(p1)
 
-        if multi_sep:
-            sub_authors = [cls.extract_author_name(p, format_mode, preserve_accents, word_sep) for p in raw.split(multi_sep)]
-            sub_authors = [a for a in sub_authors if a and a != "Inconnu"]
-            if len(sub_authors) > 1:
-                joiner = " & " if word_sep == " " else "-"
-                return f"{sub_authors[0]}{joiner}{sub_authors[1]}"
+                    if not is_p0_particle and not is_p1_particle and not is_p0_initials and not is_p1_initials:
+                        multi_parts = [p0, p1]
+
+            if multi_parts and len(multi_parts) > 1:
+                sub_authors = [
+                    cls.extract_author_name(
+                        p,
+                        format_mode=format_mode,
+                        preserve_accents=preserve_accents,
+                        word_sep=word_sep,
+                        allow_multi=False,
+                    )
+                    for p in multi_parts
+                ]
+                sub_authors = [a for a in sub_authors if a and a != "Inconnu"]
+                if len(sub_authors) > 1:
+                    joiner = " & " if word_sep == " " else "-"
+                    return f"{sub_authors[0]}{joiner}{sub_authors[1]}"
 
         # Check for inverted "Last, First" format (e.g. "Grangé, Jean-Christophe" or "Minier, Bernard")
         if "," in raw:
