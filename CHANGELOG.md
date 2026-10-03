@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Human-Readable Naming Styles (`--naming-style`)**:
+  - `standard` (Default): `Prénom Nom - Série T01 - Titre.epub` (or `Prénom Nom - Titre.epub` for standalone books).
+  - `bracket`: `Prénom Nom - [Série 01] - Titre.epub`.
+  - `posix`: `Nom_Série_01_Titre.epub` (legacy slug format).
+- **French Contractions & Apostrophe Preservation**: Preserves apostrophes (`L'Ultime Expérience`, `Des Ailes d'Argent`, `L'Étranger`) and compound first names (`Jean-Christophe Grangé`).
+- **Co-Author Delimiter**: Clean ` & ` separator for multiple authors (e.g. `Douglas Preston & Lincoln Child`).
+- **Bidirectional 3-Part Filename Parsing**: FilenameParser now recognizes standard 3-part names (`Author - Series Tome - Title`).
+
+### Changed
+- Default `author_format` changed from `"last"` to `"full"` (`Prénom Nom`).
+- Default `preserve_accents` changed from `False` to `True` for clean, ungarbled literature titles.
+- Default `component_sep` changed from `"_"` to `" - "`.
+- Default `word_sep` changed from `"-"` to `" "`.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added
