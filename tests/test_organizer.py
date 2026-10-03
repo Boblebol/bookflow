@@ -33,8 +33,8 @@ def test_organizer_plan_and_dry_run(tmp_path):
     assert books[0].extension == ".epub"
 
     planned = engine.plan_operations(books, options)
-    assert planned[0].proposed_filename == "Minier_Le-Commandant-Servaz_06_La-Vallee.epub"
-    assert planned[0].proposed_relpath == Path("Minier/Le-Commandant-Servaz/Minier_Le-Commandant-Servaz_06_La-Vallee.epub")
+    assert planned[0].proposed_filename == "Bernard Minier - Le Commandant Servaz T06 - La Vallee.epub"
+    assert planned[0].proposed_relpath == Path("Bernard Minier/Le Commandant Servaz/Bernard Minier - Le Commandant Servaz T06 - La Vallee.epub")
 
     result = engine.execute_operations(planned, options)
     assert result.moved_count == 1
