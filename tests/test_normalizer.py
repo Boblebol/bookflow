@@ -34,6 +34,21 @@ def test_extract_multiple_authors():
     assert MetadataNormalizer.extract_author_name(author, format_mode="last", word_sep="-", preserve_accents=False) == "Preston-Child"
 
 
+def test_extract_author_with_particles_and_initials():
+    # Inverted name with initials and without space after comma (e.g. Van Vogt,A. E.)
+    assert MetadataNormalizer.extract_author_name("Van Vogt,A. E.") == "A E Van Vogt"
+    assert MetadataNormalizer.extract_author_name("Van Vogt,A. E.", format_mode="last") == "Van Vogt"
+
+    # Inverted name with initials and space
+    assert MetadataNormalizer.extract_author_name("Van Vogt, A. E.") == "A E Van Vogt"
+
+    # Inverted name with particle and full first name
+    assert MetadataNormalizer.extract_author_name("Van Vogt, Alfred Elton") == "Alfred Elton Van Vogt"
+    assert MetadataNormalizer.extract_author_name("De Balzac, Honoré") == "Honoré De Balzac"
+    assert MetadataNormalizer.extract_author_name("Le Carré, John") == "John Le Carré"
+
+
+
 def test_clean_component_strips_noise_and_preserves_accents():
     title = "Tombes oubliées (French Edition)"
     clean_default = MetadataNormalizer.clean_component(title)
