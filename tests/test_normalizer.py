@@ -7,29 +7,46 @@ from bookflow.models import BookMetadata
 
 
 def test_extract_author_name_modes():
-    # Last name only (default)
-    assert MetadataNormalizer.extract_author_name("Isaac Asimov") == "Asimov"
-    assert MetadataNormalizer.extract_author_name("Bernard Minier") == "Minier"
-    assert MetadataNormalizer.extract_author_name("Jean-Christophe Grangé") == "Grange"
-    assert MetadataNormalizer.extract_author_name("Grangé, Jean-Christophe") == "Grange"
+    # Full name (default)
+    assert MetadataNormalizer.extract_author_name("Isaac Asimov") == "Isaac Asimov"
+    assert MetadataNormalizer.extract_author_name("Bernard Minier") == "Bernard Minier"
+    assert MetadataNormalizer.extract_author_name("Jean-Christophe Grangé") == "Jean-Christophe Grangé"
+    assert MetadataNormalizer.extract_author_name("Grangé, Jean-Christophe") == "Jean-Christophe Grangé"
 
-    # Full name
-    assert MetadataNormalizer.extract_author_name("Isaac Asimov", format_mode="full") == "Isaac-Asimov"
+    # Last name only
+    assert MetadataNormalizer.extract_author_name("Isaac Asimov", format_mode="last") == "Asimov"
+    assert MetadataNormalizer.extract_author_name("Bernard Minier", format_mode="last") == "Minier"
+    assert MetadataNormalizer.extract_author_name("Jean-Christophe Grangé", format_mode="last") == "Grangé"
+    assert MetadataNormalizer.extract_author_name("Jean-Christophe Grangé", format_mode="last", preserve_accents=False) == "Grange"
 
     # Inverted
-    assert MetadataNormalizer.extract_author_name("Isaac Asimov", format_mode="last-first") == "Asimov-Isaac"
+    assert MetadataNormalizer.extract_author_name("Isaac Asimov", format_mode="last-first") == "Asimov, Isaac"
+    assert MetadataNormalizer.extract_author_name("Isaac Asimov", format_mode="last-first", word_sep="-") == "Asimov-Isaac"
 
 
 def test_extract_multiple_authors():
     author = "Douglas Preston, Lincoln Child"
-    assert MetadataNormalizer.extract_author_name(author) == "Preston-Child"
+    # Default full format with space
+    assert MetadataNormalizer.extract_author_name(author) == "Douglas Preston & Lincoln Child"
+    # Last name format
+    assert MetadataNormalizer.extract_author_name(author, format_mode="last") == "Preston & Child"
+    # POSIX style
+    assert MetadataNormalizer.extract_author_name(author, format_mode="last", word_sep="-", preserve_accents=False) == "Preston-Child"
 
 
-def test_clean_component_strips_noise():
+def test_clean_component_strips_noise_and_preserves_accents():
     title = "Tombes oubliées (French Edition)"
-    clean = MetadataNormalizer.clean_component(title)
-    assert clean == "Tombes-Oubliees"
-    assert "Edition" not in clean
+    clean_default = MetadataNormalizer.clean_component(title)
+    assert clean_default == "Tombes Oubliées"
+    assert "Edition" not in clean_default
+
+    clean_no_accents = MetadataNormalizer.clean_component(title, preserve_accents=False, word_sep="-")
+    assert clean_no_accents == "Tombes-Oubliees"
+
+
+def test_clean_component_preserves_french_apostrophes():
+    assert MetadataNormalizer.clean_component("l'ultime expérience") == "L'Ultime Expérience"
+    assert MetadataNormalizer.clean_component("Des ailes d'argent") == "Des Ailes d'Argent"
 
 
 def test_generate_filename_with_series():
@@ -39,8 +56,17 @@ def test_generate_filename_with_series():
         series="Le Commandant Servaz",
         volume=6.0,
     )
+    # 1. Standard (Default): Prénom Nom - Série T01 - Titre.epub
     filename = MetadataNormalizer.generate_filename(meta, extension=".epub")
-    assert filename == "Minier_Le-Commandant-Servaz_06_La-Vallee.epub"
+    assert filename == "Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub"
+
+    # 2. Bracket style: Prénom Nom - [Série 01] - Titre.epub
+    filename_bracket = MetadataNormalizer.generate_filename(meta, extension=".epub", naming_style="bracket")
+    assert filename_bracket == "Bernard Minier - [Le Commandant Servaz 06] - La Vallée.epub"
+
+    # 3. POSIX style: Nom_Série_01_Titre.epub
+    filename_posix = MetadataNormalizer.generate_filename(meta, extension=".epub", naming_style="posix")
+    assert filename_posix == "Minier_Le-Commandant-Servaz_06_La-Vallee.epub"
 
 
 def test_generate_filename_without_series():
@@ -48,8 +74,13 @@ def test_generate_filename_without_series():
         title="La Horde du Contrevent",
         author="Alain Damasio",
     )
+    # Default standard
     filename = MetadataNormalizer.generate_filename(meta, extension=".epub")
-    assert filename == "Damasio_La-Horde-du-Contrevent.epub"
+    assert filename == "Alain Damasio - La Horde du Contrevent.epub"
+
+    # POSIX style
+    filename_posix = MetadataNormalizer.generate_filename(meta, extension=".epub", naming_style="posix")
+    assert filename_posix == "Damasio_La-Horde-du-Contrevent.epub"
 
 
 def test_generate_filename_strips_repeated_series_in_title():
@@ -60,7 +91,7 @@ def test_generate_filename_strips_repeated_series_in_title():
         volume=1.0,
     )
     filename = MetadataNormalizer.generate_filename(meta, extension=".epub")
-    assert filename == "Grange_Sans-Soleil_01_Disco-Inferno.epub"
+    assert filename == "Jean-Christophe Grangé - Sans Soleil T01 - Disco Inferno.epub"
 
 
 def test_generate_relpath():
@@ -70,9 +101,18 @@ def test_generate_relpath():
         series="Le Commandant Servaz",
         volume=6.0,
     )
+    # Hierarchical
     relpath = MetadataNormalizer.generate_relpath(
         meta,
-        filename="Minier_Le-Commandant-Servaz_06_La-Vallee.epub",
+        filename="Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub",
         structure="hierarchical",
     )
-    assert relpath == Path("Minier/Le-Commandant-Servaz/Minier_Le-Commandant-Servaz_06_La-Vallee.epub")
+    assert relpath == Path("Bernard Minier/Le Commandant Servaz/Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub")
+
+    # Flat
+    relpath_flat = MetadataNormalizer.generate_relpath(
+        meta,
+        filename="Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub",
+        structure="flat",
+    )
+    assert relpath_flat == Path("Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub")

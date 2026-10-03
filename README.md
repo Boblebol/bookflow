@@ -29,7 +29,7 @@ flowchart TD
     E -- Non / --enrich --> F["🏛️ API Open Library\n(Search & Works, Cache SQLite)"]
     E -- Oui --> G["✨ Normalisation Stricte"]
     F --> G
-    G --> H["🏷️ Nommage Standard :\nNomAuteur_Série_Tome_Titre.epub"]
+    G --> H["🏷️ Nommage Standard :\nPrénom Nom - Série T01 - Titre.epub"]
     H --> I{"🛡️ Mode d'Exécution"}
     I -- "--dry-run" --> J["📋 Rapport Prévisualisation Rich"]
     I -- "--execute" --> K["🚀 Déplacement / Copie Physique\n+ Écriture Métadonnées EPUB"]
@@ -37,24 +37,32 @@ flowchart TD
 
 ---
 
-## 🏷️ Convention de Nommage Validée
+## 🏷️ Convention de Nommage
 
-- **Avec Série :**
+BookFlow applique par défaut une convention **lisible, élégante et sans ambiguïté** (`--naming-style standard`), préservant les prénoms, les accents et les apostrophes :
+
+### 1. Style Standard (Par défaut — recommandé pour Finder, liseuses & Calibre)
+- **Avec Série & Tome :**
   ```text
-  NomAuteur_Série_Tome_Titre.epub
+  Prénom Nom - Série T01 - Titre.epub
   ```
   *Exemples :*
-  - `Minier_Le-Commandant-Servaz_06_La-Vallee.epub`
-  - `Grange_Sans-Soleil_01_Disco-Inferno.epub`
-  - `Preston-Child_Nora-Kelly_01_Tombes-Oubliees.epub`
-  - `Asimov_Fondation_01_Fondation.epub`
+  - `Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub`
+  - `Jean-Christophe Grangé - Sans Soleil T01 - Disco Inferno.epub`
+  - `Douglas Preston & Lincoln Child - Nora Kelly T01 - Tombes Oubliées.epub`
+  - `Isaac Asimov - Fondation T01 - Fondation.epub`
 
-- **Sans Série :**
+- **Sans Série (One-shot) :**
   ```text
-  NomAuteur_Titre.epub
+  Prénom Nom - Titre.epub
   ```
-  *Exemple :*
-  - `Damasio_La-Horde-du-Contrevent.epub`
+  *Exemples :*
+  - `Alain Damasio - La Horde du Contrevent.epub`
+  - `Bruce Benamran - L'Ultime Expérience.epub`
+
+### 2. Styles Alternatifs Disponibles (`--naming-style`)
+- **`--naming-style bracket`** : `Prénom Nom - [Série 01] - Titre.epub`
+- **`--naming-style posix`** : `Nom_Série_01_Titre.epub` (slug sans espace)
 
 ---
 

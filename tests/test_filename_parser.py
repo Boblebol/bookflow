@@ -53,3 +53,26 @@ def test_parse_standalone_tome_with_parent():
     assert meta.series == "Sans soleil"
     assert meta.volume == 1.0
     assert meta.formatted_volume == "01"
+
+
+def test_parse_three_part_standard_naming():
+    name = "Bernard Minier - Le Commandant Servaz T06 - La Vallée.epub"
+    meta = FilenameParser.parse(name)
+
+    assert meta.author == "Bernard Minier"
+    assert meta.series == "Le Commandant Servaz"
+    assert meta.volume == 6.0
+    assert meta.volume_raw == "06"
+    assert meta.title == "La Vallée"
+
+
+def test_parse_three_part_bracket_naming():
+    name = "Bernard Minier - [Le Commandant Servaz 06] - La Vallée.epub"
+    meta = FilenameParser.parse(name)
+
+    assert meta.author == "Bernard Minier"
+    assert meta.series == "Le Commandant Servaz"
+    assert meta.volume == 6.0
+    assert meta.volume_raw == "06"
+    assert meta.title == "La Vallée"
+
