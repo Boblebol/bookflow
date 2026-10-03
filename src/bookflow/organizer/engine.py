@@ -26,10 +26,11 @@ class OrganizerOptions:
     enrich: bool = True
     write_metadata: bool = False
     structure: str = "hierarchical"  # 'hierarchical' or 'flat'
-    author_format: str = "last"  # 'last', 'full', 'last-first'
-    preserve_accents: bool = False
-    component_sep: str = "_"
-    word_sep: str = "-"
+    author_format: str = "full"  # 'full', 'last', 'last-first'
+    preserve_accents: bool = True
+    component_sep: str = " - "
+    word_sep: str = " "
+    naming_style: str = "standard"  # 'standard', 'bracket', 'posix'
 
 
 @dataclass
@@ -112,6 +113,7 @@ class OrganizerEngine:
                 component_sep=options.component_sep,
                 word_sep=options.word_sep,
                 preserve_accents=options.preserve_accents,
+                naming_style=options.naming_style,
             )
             book.proposed_filename = filename
 

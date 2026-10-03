@@ -79,6 +79,46 @@ class FilenameParser:
         # Try structured separator splits: " - "
         if " - " in stem:
             parts = [p.strip() for p in stem.split(" - ") if p.strip()]
+            if len(parts) == 3:
+                # E.g. "Bernard Minier - Le Commandant Servaz T06 - La Vallée"
+                # Or "Bernard Minier - [Le Commandant Servaz 06] - La Vallée"
+                author = cls.clean_raw_string(parts[0])
+                middle = parts[1].strip("[] ")
+                title = cls.clean_raw_string(parts[2])
+
+                vol_in_mid = VOLUME_PATTERN.search(middle)
+                series_name = middle
+                vol_val = None
+                vol_raw_str = None
+                if vol_in_mid:
+                    valid_groups = [g for g in vol_in_mid.groups() if g is not None]
+                    vol_raw_str = valid_groups[0] if valid_groups else None
+                    if vol_raw_str:
+                        try:
+                            vol_val = float(vol_raw_str)
+                        except ValueError:
+                            pass
+                    series_name = middle[:vol_in_mid.start()].strip(" ._-#T")
+                else:
+                    end_digits = re.search(r"\s+(\d+(?:\.\d+)?)$", middle)
+                    if end_digits:
+                        vol_raw_str = end_digits.group(1)
+                        try:
+                            vol_val = float(vol_raw_str)
+                        except ValueError:
+                            pass
+                        series_name = middle[:end_digits.start()].strip()
+
+                return BookMetadata(
+                    title=title,
+                    author=author,
+                    series=cls.clean_raw_string(series_name),
+                    volume=vol_val,
+                    volume_raw=vol_raw_str,
+                    year=year,
+                    source="filename",
+                )
+
             if len(parts) == 2:
                 # E.g. "La Horde du Contrevent - Alain Damasio"
                 # Or "Blacke Pierce - Un mystere Adele Sharp T2 Condamne a fuir"

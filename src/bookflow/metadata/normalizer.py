@@ -37,10 +37,10 @@ class MetadataNormalizer:
     def clean_component(
         cls,
         text: str,
-        preserve_accents: bool = False,
-        word_sep: str = "-",
+        preserve_accents: bool = True,
+        word_sep: str = " ",
     ) -> str:
-        """Clean a filename component (title, series, etc.) into safe characters."""
+        """Clean a filename component (title, series, etc.) into safe, human-readable characters."""
         if not text:
             return ""
 
@@ -51,46 +51,62 @@ class MetadataNormalizer:
         text = text.replace("œ", "oe").replace("Œ", "Oe")
         text = text.replace("æ", "ae").replace("Æ", "Ae")
 
-        # Replace apostrophes and quotation marks with hyphen or space
-        text = re.sub(r"['’`]", "-", text)
+        # Normalize apostrophes and quotation marks
+        text = re.sub(r"['’`]", "'", text)
+        text = re.sub(r'["«»“”]', " ", text)
 
-        # Remove illegal filename chars and parentheses
-        text = re.sub(r'[\\/*?:"<>|;~#%&{}()[\]]', " ", text)
+        # Remove illegal filename chars, stars, and brackets
+        text = re.sub(r'[\\/*?:"<>|;~#%&{}[\]*^]', " ", text)
 
         if not preserve_accents:
             text = cls.strip_accents(text)
 
-        # Normalize whitespace into word_sep
-        words = [w for w in re.split(r"[\s._-]+", text) if w]
-        if not words:
+        # Normalize whitespace and tokenize
+        raw_tokens = [w for w in re.split(r"[\s._]+", text) if w]
+        if not raw_tokens:
             return "Unknown"
 
-        # Capitalize each word nicely (Title Case with lowercase minor words)
+        # Capitalize each word nicely (Title Case with lowercase minor words and contraction preservation)
         formatted_words = []
-        for i, w in enumerate(words):
-            if len(w) == 1 and w.isalpha():
-                formatted_words.append(w.upper() if i == 0 else (w.lower() if w.lower() in STOP_WORDS else w.upper()))
-            elif i > 0 and w.lower() in STOP_WORDS:
-                formatted_words.append(w.lower())
+        for i, token in enumerate(raw_tokens):
+            if "'" in token:
+                parts = token.split("'", 1)
+                p0, p1 = parts[0], parts[1]
+                p0_clean = p0.capitalize() if i == 0 else p0.lower()
+                p1_clean = p1.capitalize() if p1 else ""
+                formatted_words.append(f"{p0_clean}'{p1_clean}")
+            elif "-" in token and len(token) > 1:
+                subparts = [p.capitalize() for p in token.split("-") if p]
+                formatted_words.append("-".join(subparts))
             else:
-                formatted_words.append(w.capitalize())
+                lower = token.lower()
+                if len(token) == 1 and token.isalpha():
+                    formatted_words.append(token.upper() if i == 0 else (lower if lower in STOP_WORDS else token.upper()))
+                elif i > 0 and lower in STOP_WORDS:
+                    formatted_words.append(lower)
+                else:
+                    formatted_words.append(token.capitalize())
 
-        return word_sep.join(formatted_words)
+        result = " ".join(formatted_words)
+        if word_sep != " ":
+            result = re.sub(r"['\s]+", word_sep, result)
+
+        return result
 
     @classmethod
     def extract_author_name(
         cls,
         author_raw: str,
-        format_mode: str = "last",
-        preserve_accents: bool = False,
-        word_sep: str = "-",
+        format_mode: str = "full",
+        preserve_accents: bool = True,
+        word_sep: str = " ",
     ) -> str:
         """Extract and format author name according to chosen format mode.
 
         Modes:
-        - 'last': Last name only (e.g. Asimov, Minier, Grange, Preston-Child)
-        - 'full': Full name (e.g. Isaac-Asimov, Bernard-Minier)
-        - 'last-first': Inverted name (e.g. Asimov-Isaac)
+        - 'full': Full name (e.g. Isaac Asimov, Bernard Minier, Jean-Christophe Grangé)
+        - 'last': Last name only (e.g. Asimov, Minier, Grangé, Preston & Child)
+        - 'last-first': Inverted name (e.g. Asimov, Isaac or Minier, Bernard)
         """
         if not author_raw or author_raw.strip().lower() in ("unknown", "inconnu", "inconnue", ""):
             return "Inconnu"
@@ -114,7 +130,8 @@ class MetadataNormalizer:
             sub_authors = [cls.extract_author_name(p, format_mode, preserve_accents, word_sep) for p in raw.split(multi_sep)]
             sub_authors = [a for a in sub_authors if a and a != "Inconnu"]
             if len(sub_authors) > 1:
-                return f"{sub_authors[0]}-{sub_authors[1]}"
+                joiner = " & " if word_sep == " " else "-"
+                return f"{sub_authors[0]}{joiner}{sub_authors[1]}"
 
         # Check for inverted "Last, First" format (e.g. "Grangé, Jean-Christophe" or "Minier, Bernard")
         if "," in raw:
@@ -141,7 +158,8 @@ class MetadataNormalizer:
         if format_mode == "full" and clean_first:
             return f"{clean_first}{word_sep}{clean_last}"
         elif format_mode == "last-first" and clean_first:
-            return f"{clean_last}{word_sep}{clean_first}"
+            joiner = ", " if word_sep == " " else word_sep
+            return f"{clean_last}{joiner}{clean_first}"
         return clean_last
 
     @classmethod
@@ -150,8 +168,8 @@ class MetadataNormalizer:
         series_raw: Optional[str],
         volume: Optional[float] = None,
         volume_raw: Optional[str] = None,
-        preserve_accents: bool = False,
-        word_sep: str = "-",
+        preserve_accents: bool = True,
+        word_sep: str = " ",
     ) -> tuple[Optional[str], Optional[str]]:
         """Clean series name and format volume to two digits."""
         if not series_raw:
@@ -182,17 +200,35 @@ class MetadataNormalizer:
         cls,
         metadata: BookMetadata,
         extension: str = ".epub",
-        author_format: str = "last",
-        component_sep: str = "_",
-        word_sep: str = "-",
-        preserve_accents: bool = False,
+        author_format: str = "full",
+        component_sep: str = " - ",
+        word_sep: str = " ",
+        preserve_accents: bool = True,
+        naming_style: str = "standard",
     ) -> str:
-        """Generate standardized filename based on specification.
+        """Generate standardized, crystal-clear filename based on chosen convention.
 
-        Format:
-        - With series: NomAuteur_Série_Tome_Titre.epub
-        - Without series: NomAuteur_Titre.epub
+        Styles:
+        - 'standard' (Default):
+            With series: Prénom Nom - Série T01 - Titre.epub
+            Without series: Prénom Nom - Titre.epub
+        - 'bracket':
+            With series: Prénom Nom - [Série 01] - Titre.epub
+            Without series: Prénom Nom - Titre.epub
+        - 'posix' (Legacy slug):
+            With series: Nom_Série_01_Titre.epub
+            Without series: Nom_Titre.epub
         """
+        # Automatic defaults adjustments for posix style
+        if naming_style == "posix":
+            if author_format == "full":
+                author_format = "last"
+            if component_sep == " - ":
+                component_sep = "_"
+            if word_sep == " ":
+                word_sep = "-"
+            preserve_accents = False
+
         # 1. Author
         author = cls.extract_author_name(
             metadata.author,
@@ -216,26 +252,48 @@ class MetadataNormalizer:
 
         # Avoid repeating series name in title if title starts with series name
         if series_name and clean_title.lower().startswith(series_name.lower()):
-            stripped = clean_title[len(series_name):].lstrip(word_sep)
+            stripped = clean_title[len(series_name):].lstrip(f"{word_sep} -:.")
             if stripped:
-                clean_title = stripped
+                clean_title = stripped[0].upper() + stripped[1:]
 
         ext = extension if extension.startswith(".") else f".{extension}"
 
-        if series_name and vol_str:
-            filename = f"{author}{component_sep}{series_name}{component_sep}{vol_str}{component_sep}{clean_title}{ext}"
-        else:
-            filename = f"{author}{component_sep}{clean_title}{ext}"
+        if naming_style == "posix":
+            if series_name and vol_str:
+                filename = f"{author}_{series_name}_{vol_str}_{clean_title}{ext}"
+            elif series_name:
+                filename = f"{author}_{series_name}_{clean_title}{ext}"
+            else:
+                filename = f"{author}_{clean_title}{ext}"
+        elif naming_style == "bracket":
+            if series_name and vol_str:
+                filename = f"{author}{component_sep}[{series_name} {vol_str}]{component_sep}{clean_title}{ext}"
+            elif series_name:
+                filename = f"{author}{component_sep}[{series_name}]{component_sep}{clean_title}{ext}"
+            else:
+                filename = f"{author}{component_sep}{clean_title}{ext}"
+        else:  # standard
+            if series_name and vol_str:
+                vol_display = f"T{vol_str}" if vol_str and vol_str[0].isdigit() else vol_str
+                filename = f"{author}{component_sep}{series_name} {vol_display}{component_sep}{clean_title}{ext}"
+            elif series_name:
+                filename = f"{author}{component_sep}{series_name}{component_sep}{clean_title}{ext}"
+            else:
+                filename = f"{author}{component_sep}{clean_title}{ext}"
 
         # Limit total filename length to 240 chars to respect filesystem limits
         if len(filename) > 240:
-            max_title_len = 240 - len(author) - len(ext) - len(component_sep) * 3 - (len(series_name or "") + len(vol_str or ""))
+            overhead = len(author) + len(ext) + len(component_sep) * 3 + len(series_name or "") + len(vol_str or "") + 10
+            max_title_len = 240 - overhead
             if max_title_len > 10:
-                clean_title = clean_title[:max_title_len].rstrip(word_sep)
-                if series_name and vol_str:
-                    filename = f"{author}{component_sep}{series_name}{component_sep}{vol_str}{component_sep}{clean_title}{ext}"
+                clean_title = clean_title[:max_title_len].rstrip(f"{word_sep} -_")
+                if naming_style == "posix":
+                    filename = f"{author}_{series_name}_{vol_str}_{clean_title}{ext}" if (series_name and vol_str) else f"{author}_{clean_title}{ext}"
+                elif naming_style == "bracket":
+                    filename = f"{author}{component_sep}[{series_name} {vol_str}]{component_sep}{clean_title}{ext}" if (series_name and vol_str) else f"{author}{component_sep}{clean_title}{ext}"
                 else:
-                    filename = f"{author}{component_sep}{clean_title}{ext}"
+                    vol_display = f"T{vol_str}" if vol_str and vol_str[0].isdigit() else vol_str
+                    filename = f"{author}{component_sep}{series_name} {vol_display}{component_sep}{clean_title}{ext}" if (series_name and vol_str) else f"{author}{component_sep}{clean_title}{ext}"
 
         return filename
 
@@ -245,9 +303,9 @@ class MetadataNormalizer:
         metadata: BookMetadata,
         filename: str,
         structure: str = "hierarchical",
-        author_format: str = "last",
-        word_sep: str = "-",
-        preserve_accents: bool = False,
+        author_format: str = "full",
+        word_sep: str = " ",
+        preserve_accents: bool = True,
     ) -> Path:
         """Generate relative folder path for organizing.
 

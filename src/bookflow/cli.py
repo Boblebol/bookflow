@@ -153,19 +153,25 @@ def organize(
         help="Folder structure: 'hierarchical' (Author/Series/Book) or 'flat'.",
     ),
     author_format: str = typer.Option(
-        "last",
+        "full",
         "--author-format",
         "-a",
-        help="Author format: 'last' (NomAuteur), 'full' (Prenom-Nom), or 'last-first'.",
+        help="Author format: 'full' (Prenom Nom), 'last' (Nom), or 'last-first'.",
     ),
     preserve_accents: bool = typer.Option(
-        False,
-        "--preserve-accents",
-        help="Preserve accents in filenames (default: False, strip accents for cross-platform safety).",
+        True,
+        "--preserve-accents/--no-preserve-accents",
+        help="Preserve accents in filenames (default: True for clean readable names).",
+    ),
+    naming_style: str = typer.Option(
+        "standard",
+        "--naming-style",
+        "-n",
+        help="Naming style: 'standard' (Auteur - Série T01 - Titre), 'bracket' (Auteur - [Série 01] - Titre), or 'posix' (Nom_Série_01_Titre).",
     ),
     limit: int = typer.Option(30, "--limit", "-l", help="Number of preview rows to show in table."),
 ):
-    """⚡ Organize books into standardized naming convention: NomAuteur_Série_Tome_Titre.epub."""
+    """⚡ Organize books into standardized naming convention: Prénom Nom - Série T01 - Titre.epub."""
     if dry_run:
         console.print(
             Panel(
@@ -192,6 +198,7 @@ def organize(
         structure=structure,
         author_format=author_format,
         preserve_accents=preserve_accents,
+        naming_style=naming_style,
     )
 
     engine = OrganizerEngine()
@@ -282,6 +289,9 @@ def inspect(
         resolve_path=True,
     ),
     enrich: bool = typer.Option(True, "--enrich/--no-enrich", help="Simulate Open Library enrichment."),
+    author_format: str = typer.Option("full", "--author-format", "-a", help="Author format: 'full', 'last', or 'last-first'."),
+    preserve_accents: bool = typer.Option(True, "--preserve-accents/--no-preserve-accents", help="Preserve accents."),
+    naming_style: str = typer.Option("standard", "--naming-style", "-n", help="Naming style: 'standard', 'bracket', or 'posix'."),
 ):
     """📖 Deep inspection of a single ebook file."""
     console.print(Panel(f"[bold cyan]Inspecting File:[/bold cyan] {file_path}", border_style="cyan"))
@@ -297,8 +307,19 @@ def inspect(
             meta = enriched
 
     # Computed filename and relative path
-    filename = MetadataNormalizer.generate_filename(meta, extension=book.extension)
-    relpath = MetadataNormalizer.generate_relpath(meta, filename)
+    filename = MetadataNormalizer.generate_filename(
+        meta,
+        extension=book.extension,
+        author_format=author_format,
+        preserve_accents=preserve_accents,
+        naming_style=naming_style,
+    )
+    relpath = MetadataNormalizer.generate_relpath(
+        meta,
+        filename=filename,
+        author_format=author_format,
+        preserve_accents=preserve_accents,
+    )
 
     table = Table(box=box.ROUNDED, show_header=False)
     table.add_column("Property", style="bold yellow", width=22)
@@ -308,7 +329,7 @@ def inspect(
     table.add_row("File Size", f"{book.file_size_bytes / (1024 * 1024):.2f} MB")
     table.add_row("Extracted Title", meta.title or "[red]None[/red]")
     table.add_row("Extracted Author", meta.author or "[red]None[/red]")
-    table.add_row("Normalized Author", MetadataNormalizer.extract_author_name(meta.author))
+    table.add_row("Normalized Author", MetadataNormalizer.extract_author_name(meta.author, format_mode=author_format, preserve_accents=preserve_accents))
     table.add_row("Series", meta.series or "[dim]None[/dim]")
     table.add_row("Volume", meta.formatted_volume if meta.series else "[dim]None[/dim]")
     table.add_row("ISBN", meta.isbn or "[dim]None[/dim]")
