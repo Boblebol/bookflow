@@ -141,10 +141,10 @@ def organize(
         help="Query Open Library to enrich missing tags, author, and titles.",
     ),
     write_metadata: bool = typer.Option(
-        False,
-        "--write-metadata",
+        True,
+        "--write-metadata/--no-write-metadata",
         "-w",
-        help="Write enriched metadata directly into EPUB Dublin Core/OPF tags.",
+        help="Write enriched metadata directly into EPUB/PDF tags (default: True).",
     ),
     structure: str = typer.Option(
         "hierarchical",
@@ -265,6 +265,7 @@ def organize(
         summary_text += (
             f"  • Moved: [green]{result.moved_count}[/green]\n"
             f"  • Copied: [green]{result.copied_count}[/green]\n"
+            f"  • Metadata Injected: [bold magenta]{result.metadata_written_count}[/bold magenta]\n"
             f"  • Skipped: [yellow]{result.skipped_count}[/yellow]\n"
             f"  • Errors: [red]{result.error_count}[/red]"
         )

@@ -24,7 +24,7 @@ class OrganizerOptions:
     dry_run: bool = True
     mode: str = "move"  # 'move' or 'copy'
     enrich: bool = True
-    write_metadata: bool = False
+    write_metadata: bool = True
     structure: str = "hierarchical"  # 'hierarchical' or 'flat'
     author_format: str = "full"  # 'full', 'last', 'last-first'
     preserve_accents: bool = True
@@ -44,6 +44,7 @@ class OrganizerResult:
     enriched_count: int = 0
     moved_count: int = 0
     copied_count: int = 0
+    metadata_written_count: int = 0
     skipped_count: int = 0
     error_count: int = 0
     books: list[BookFile] = field(default_factory=list)
@@ -198,10 +199,6 @@ class OrganizerEngine:
             try:
                 target_path.parent.mkdir(parents=True, exist_ok=True)
 
-                # Write metadata into EPUB first if requested
-                if options.write_metadata and book.extension == ".epub" and book.final_metadata:
-                    MetadataWriter.write_epub_metadata(book.path, book.final_metadata)
-
                 if options.mode == "copy":
                     shutil.copy2(str(book.path), str(target_path))
                     book.status = "copied"
@@ -210,6 +207,12 @@ class OrganizerEngine:
                     shutil.move(str(book.path), str(target_path))
                     book.status = "moved"
                     res.moved_count += 1
+
+                # Write metadata directly into organized target file (EPUB or PDF)
+                if options.write_metadata and book.final_metadata:
+                    if MetadataWriter.write_metadata(target_path, book.final_metadata):
+                        res.metadata_written_count += 1
+
 
             except Exception as e:
                 book.status = "error"

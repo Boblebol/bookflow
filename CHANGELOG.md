@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+- **Internal Metadata Writing on Organization (`--write-metadata`)**:
+  - Full Dublin Core & Calibre OPF injection for EPUB: `title`, `creator` (author), `description`, `identifier` (ISBN), `date` (year), `publisher`, `language`, `subject` (tags), and `calibre:series` / `calibre:series_index`.
+  - Document Information dictionary injection for PDF: `/Title`, `/Author`, `/Subject`, `/Keywords`, and `/Producer`.
+  - Atomic writing via temporary staging files ensuring zero risk of file corruption.
+  - Enabled by default on all `organize` operations (`--write-metadata` default `True`) with opt-out via `--no-write-metadata`.
+  - Execution Report now tracks and displays `Metadata Injected` count.
 - **Human-Readable Naming Styles (`--naming-style`)**:
   - `standard` (Default): `Prénom Nom - Série T01 - Titre.epub` (or `Prénom Nom - Titre.epub` for standalone books).
   - `bracket`: `Prénom Nom - [Série 01] - Titre.epub`.
@@ -15,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **French Contractions & Apostrophe Preservation**: Preserves apostrophes (`L'Ultime Expérience`, `Des Ailes d'Argent`, `L'Étranger`) and compound first names (`Jean-Christophe Grangé`).
 - **Co-Author Delimiter**: Clean ` & ` separator for multiple authors (e.g. `Douglas Preston & Lincoln Child`).
 - **Bidirectional 3-Part Filename Parsing**: FilenameParser now recognizes standard 3-part names (`Author - Series Tome - Title`).
+
 
 ### Changed
 - Default `author_format` changed from `"last"` to `"full"` (`Prénom Nom`).
