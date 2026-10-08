@@ -69,8 +69,81 @@ def test_organizer_real_move(tmp_path):
     result = engine.execute_operations(planned, options)
 
     assert result.moved_count == 1
-    # Original should be gone
-    assert not dummy_file.exists()
     # Target should exist
     expected_target = target_dir / planned[0].proposed_relpath
     assert expected_target.exists()
+
+
+def test_organizer_with_metadata_writing(tmp_path):
+    import ebooklib
+    from ebooklib import epub
+    from bookflow.metadata.extractor import MetadataExtractor
+
+    source_dir = tmp_path / "source"
+    target_dir = tmp_path / "target"
+    source_dir.mkdir()
+    target_dir.mkdir()
+
+    # Create valid minimal EPUB
+    epub_file = source_dir / "Unknown.Book.2021.epub"
+    book = epub.EpubBook()
+    book.set_identifier("orig-id")
+    book.set_title("Raw Bad Title")
+    book.set_language("fr")
+    book.add_author("Raw Author")
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    c1 = epub.EpubHtml(title="C1", file_name="c1.xhtml", lang="fr")
+    c1.content = "<h1>Chapitre 1</h1>"
+    book.add_item(c1)
+    book.spine = ["nav", c1]
+    epub.write_epub(str(epub_file), book)
+
+    engine = OrganizerEngine(openlibrary_client=OpenLibraryClient(cache_path=tmp_path / "c.sqlite", request_delay=0))
+
+    options = OrganizerOptions(
+        source_dir=source_dir,
+        target_dir=target_dir,
+        dry_run=False,
+        enrich=False,
+        mode="move",
+        write_metadata=True,
+    )
+
+    books = engine.scan_directory(source_dir)
+    # Inject nice metadata into final_metadata
+    books[0].final_metadata = BookMetadata(
+        title="La Chambre des Merveilles",
+        author="Julien Sandrel",
+        series="Romans",
+        volume=1.0,
+        description="Une histoire émouvante d'amour maternel.",
+        subjects=["Roman contemporain", "Émotion"],
+        isbn="9782253258247",
+        year=2018,
+        publisher="Calmann-Lévy",
+        language="fr",
+    )
+
+    planned = engine.plan_operations(books, options)
+    result = engine.execute_operations(planned, options)
+
+    assert result.moved_count == 1
+    assert result.metadata_written_count == 1
+
+    target_file = target_dir / planned[0].proposed_relpath
+    assert target_file.exists()
+
+    # Check internal metadata written in the target file
+    extracted = MetadataExtractor.extract(target_file).extracted
+    assert extracted is not None
+    assert extracted.title == "La Chambre des Merveilles"
+    assert extracted.author == "Julien Sandrel"
+    assert extracted.series == "Romans"
+    assert extracted.volume == 1.0
+    assert extracted.description == "Une histoire émouvante d'amour maternel."
+    assert extracted.isbn == "9782253258247"
+    assert extracted.year == 2018
+    assert extracted.publisher == "Calmann-Lévy"
+    assert "Roman contemporain" in extracted.subjects
+

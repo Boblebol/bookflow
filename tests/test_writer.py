@@ -36,9 +36,14 @@ def test_write_and_read_epub_metadata(tmp_path):
         series="Les Miserables",
         volume=1.0,
         subjects=["Classique", "Littérature"],
+        description="Une fresque sociale grandiose au XIXe siècle.",
+        isbn="9782253006275",
+        year=1862,
+        publisher="Pagnerre",
+        language="fr",
     )
 
-    success = MetadataWriter.write_epub_metadata(epub_path, new_meta)
+    success = MetadataWriter.write_metadata(epub_path, new_meta)
     assert success is True
 
     # Read back and verify
@@ -51,3 +56,50 @@ def test_write_and_read_epub_metadata(tmp_path):
     assert extracted.series == "Les Miserables"
     assert extracted.volume == 1.0
     assert "Classique" in extracted.subjects
+    assert extracted.description == "Une fresque sociale grandiose au XIXe siècle."
+    assert extracted.isbn == "9782253006275"
+    assert extracted.year == 1862
+    assert extracted.publisher == "Pagnerre"
+    assert extracted.language == "fr"
+
+
+def test_write_and_read_pdf_metadata(tmp_path):
+    import pypdf
+
+    pdf_path = tmp_path / "test_doc.pdf"
+
+    # Create minimal valid PDF
+    writer = pypdf.PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+    with open(pdf_path, "wb") as f:
+        writer.write(f)
+
+    meta = BookMetadata(
+        title="Le Grand Meaulnes",
+        author="Alain-Fournier",
+        series="Romans Français",
+        volume=1.0,
+        description="Un roman initiatique mystérieux et poétique.",
+        subjects=["Roman", "Classique"],
+        publisher="Éditions Émile-Paul Frères",
+    )
+
+    success = MetadataWriter.write_metadata(pdf_path, meta)
+    assert success is True
+
+    # Verify with pypdf
+    reader = pypdf.PdfReader(str(pdf_path))
+    pdf_info = reader.metadata
+    assert pdf_info is not None
+    assert pdf_info.get("/Title") == "Le Grand Meaulnes"
+    assert pdf_info.get("/Author") == "Alain-Fournier"
+    assert pdf_info.get("/Subject") == "Un roman initiatique mystérieux et poétique."
+    assert "Roman" in pdf_info.get("/Keywords", "")
+    assert pdf_info.get("/Producer") == "Éditions Émile-Paul Frères"
+
+    # Verify with MetadataExtractor
+    extracted_file = MetadataExtractor.extract(pdf_path)
+    assert extracted_file.extracted is not None
+    assert extracted_file.extracted.title == "Le Grand Meaulnes"
+    assert extracted_file.extracted.author == "Alain-Fournier"
+

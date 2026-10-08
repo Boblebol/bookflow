@@ -107,8 +107,11 @@ bookflow organize "/Volumes/WD_BLACK/Media/books/Sans soleil 2T"
 # Rangement physique effectif (copie ou déplacement)
 bookflow organize "/Volumes/WD_BLACK/Media/books/Sans soleil 2T" --target "/Volumes/WD_BLACK/Media/books_clean" --execute
 
-# Rangement avec mise à jour des métadonnées internes de l'EPUB
-bookflow organize "/source/books" --target "/clean/books" --execute --write-metadata
+# Rangement avec mise à jour automatique des métadonnées internes (actif par défaut)
+bookflow organize "/source/books" --target "/clean/books" --execute
+
+# Rangement sans toucher aux métadonnées internes des fichiers
+bookflow organize "/source/books" --target "/clean/books" --execute --no-write-metadata
 ```
 
 #### Options clés :
@@ -119,9 +122,11 @@ bookflow organize "/source/books" --target "/clean/books" --execute --write-meta
 | `--mode / -m` | Action physique : `move` (déplacement) ou `copy` (copie) | `move` |
 | `--structure / -s` | Arborescence : `hierarchical` (`Auteur/Série/Livre`) ou `flat` | `hierarchical` |
 | `--enrich / --no-enrich` | Interrogation externe d'Open Library si nécessaire | `--enrich` |
-| `--write-metadata / -w` | Réécriture atomique des tags Dublin Core / Calibre dans l'ePub | `False` |
-| `--author-format / -a` | Format auteur : `last` (Asimov), `full` (Isaac-Asimov), `last-first` | `last` |
-| `--preserve-accents` | Conserver les accents dans les noms de fichiers | `False` (strip accents) |
+| `--write-metadata / --no-write-metadata` | Réécriture atomique des métadonnées internes complètes (EPUB & PDF) | `--write-metadata` (`True`) |
+| `--author-format / -a` | Format auteur : `full` (`Prénom Nom`), `last` (`Nom`), `last-first` | `full` |
+| `--preserve-accents` | Conserver les accents dans les noms de fichiers | `True` |
+| `--naming-style / -n` | Style de nommage : `standard`, `bracket`, `posix` | `standard` |
+
 
 ### 4. `bookflow lookup` — Interroger l'API Open Library
 Recherche directe sur les millions d'œuvres répertoriées par Internet Archive :
